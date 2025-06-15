@@ -1,5 +1,6 @@
 #include "Compiler/Module.h"
 #include "Compiler/Compilation.h"
+#include "clang/Lex/Lexer.h"
 
 namespace clice {
 
@@ -97,39 +98,18 @@ std::string scanModuleName(CompilationParams& params) {
 }
 
 std::expected<ModuleInfo, std::string> scanModule(CompilationParams& params) {
-    struct ModuleCollector : public clang::PPCallbacks {
-        ModuleInfo& info;
-
-        ModuleCollector(ModuleInfo& info) : info(info) {}
-
-        void moduleImport(clang::SourceLocation importLoc,
-                          clang::ModuleIdPath path,
-                          const clang::Module* imported) override {
-            assert(path.size() == 1);
-            info.mods.emplace_back(path[0].first->getName());
-        }
-    };
-
     ModuleInfo info;
-    clang::PreprocessOnlyAction action;
-    auto instance = impl::createInstance(params);
-
-    if(!action.BeginSourceFile(*instance, instance->getFrontendOpts().Inputs[0])) {
-        return std::unexpected("Failed to begin source file");
+    auto unit = preprocess(params);
+    if(!unit) {
+        return std::unexpected(unit.error());
     }
 
-    auto& pp = instance->getPreprocessor();
-
-    pp.addPPCallbacks(std::make_unique<ModuleCollector>(info));
-
-    if(auto error = action.Execute()) {
-        return std::unexpected(std::format("{}", error));
+    for(auto& import: unit->directives()[unit->getInterestedFile()].imports) {
+        info.mods.emplace_back(import.name);
     }
 
-    if(pp.isInNamedModule()) {
-        info.isInterfaceUnit = pp.isInNamedInterfaceUnit();
-        info.name = pp.getNamedModuleName();
-    }
+    info.isInterfaceUnit = unit->is_module_interface_unit();
+    info.name = unit->module_name();
 
     return info;
 }
