@@ -54,9 +54,8 @@ async::Task<json::Value> Scheduler::completion(std::string path, std::uint32_t o
 
     /// Set compilation params ... .
     CompilationParams params;
-    params.command = database.getCommand(path);
-    params.srcPath = path;
-    params.content = openFile->content;
+    params.arguments = database.get_command(path);
+    params.add_remapped_file(path, openFile->content);
     params.pch = {PCH->path, PCH->preamble.size()};
     params.completion = {path, offset};
 
@@ -75,8 +74,9 @@ async::Task<bool> Scheduler::isPCHOutdated(llvm::StringRef path, llvm::StringRef
     }
 
     /// Check command and preamble matchs.
-    auto command = database.getCommand(path);
-    if(openFile->PCH->command != command || openFile->PCH->preamble != preamble) {
+    auto command = database.get_command(path);
+    /// FIXME: check command. openFile->PCH->command != command
+    if(openFile->PCH->preamble != preamble) {
         co_return true;
     }
 
@@ -105,11 +105,9 @@ async::Task<> Scheduler::buildPCH(std::string path, std::string content) {
                                             std::uint32_t bound,
                                             std::string content) -> async::Task<> {
         CompilationParams params;
-        params.srcPath = path;
-        params.command = scheduler.database.getCommand(path);
-        params.content = content;
-        params.bound = bound;
+        params.arguments = scheduler.database.get_command(path);
         params.outPath = path::join(config::index.dir, path::filename(path) + ".pch");
+        params.add_remapped_file(path, content, bound);
 
         PCHInfo info;
         auto result = co_await async::submit([&] { return compile(params, info); });
@@ -164,9 +162,8 @@ async::Task<> Scheduler::buildAST(std::string path, std::string content) {
     }
 
     CompilationParams params;
-    params.srcPath = path;
-    params.command = database.getCommand(path);
-    params.content = content;
+    params.arguments = database.get_command(path);
+    params.add_remapped_file(path, content);
     params.pch = {PCH->path, PCH->preamble.size()};
 
     /// Check result
@@ -182,7 +179,7 @@ async::Task<> Scheduler::buildAST(std::string path, std::string content) {
 
     file = &openFiles[path];
     /// Update built AST info.
-    file->AST = std::make_shared<ASTInfo>(std::move(*info));
+    file->AST = std::make_shared<CompilationUnit>(std::move(*info));
     /// Dispose the task so that it will destroyed when task complete.
     file->ASTBuild.dispose();
 

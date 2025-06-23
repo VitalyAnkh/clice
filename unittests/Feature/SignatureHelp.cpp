@@ -19,9 +19,10 @@ int main() {
 )cpp";
 
     CompilationParams params;
-    params.content = code;
-    params.srcPath = "main.cpp";
-    params.command = "clang++ -std=c++20 main.cpp";
+    std::vector<const char*> arguments = {"clang++", "-std=c++20", "main.cpp"};
+    params.arguments = arguments;
+
+    params.add_remapped_file("main.cpp", code);
     /// params.completion = {"main.cpp", 9, 10};
 
     /// config::SignatureHelpOption options = {};

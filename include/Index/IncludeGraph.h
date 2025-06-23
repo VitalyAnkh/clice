@@ -5,7 +5,7 @@
 #include "llvm/ADT/DenseMap.h"
 
 namespace clice {
-class ASTInfo;
+class CompilationUnit;
 }
 
 namespace clice::index {
@@ -35,14 +35,14 @@ struct IncludeGraph {
     /// context. A map between FileID and its include location.
     llvm::DenseMap<clang::FileID, std::uint32_t> file_table;
 
-    static IncludeGraph from(ASTInfo& AST);
+    static IncludeGraph from(CompilationUnit& unit);
 
     std::string getPath(std::uint32_t path_ref) const {
         assert(path_ref < paths.size());
         return paths[path_ref];
     }
 
-    std::uint32_t getInclude(clang::FileID fid) {
+    std::uint32_t getInclude(clang::FileID fid) const {
         auto it = file_table.find(fid);
         assert(it != file_table.end());
         return it->second;

@@ -3,6 +3,7 @@
 #include "Compiler/Compilation.h"
 #include "Feature/CodeCompletion.h"
 #include "clang/Sema/Sema.h"
+#include "clang/Lex/Preprocessor.h"
 #include "clang/Sema/CodeCompleteConsumer.h"
 
 namespace clice::feature {
@@ -164,7 +165,7 @@ std::vector<CompletionItem> codeCompletion(CompilationParams& params,
                                            const config::CodeCompletionOption& option) {
     auto& [file, offset] = params.completion;
     auto consumer = new CodeCompletionCollector(offset);
-    if(auto info = compile(params, consumer)) {
+    if(auto info = complete(params, consumer)) {
         return consumer->dump();
         /// TODO: Handle error here.
     } else {
